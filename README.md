@@ -1,24 +1,23 @@
 # Chorus
 
-Route a single Discord bot to multiple Claude Code sessions. Each Discord channel maps to a dedicated Claude Code session with full capabilities — tools, CLAUDE.md, hooks, skills, MCP servers, everything.
+**Route a single Discord bot to multiple Claude Code sessions.** Like the [official Discord plugin](https://github.com/anthropics/claude-plugins-official/tree/main/external_plugins/discord), but multi-session — each Discord channel gets its own Claude Code session, all through one bot.
 
-```
-                                               ┌─ Relay MCP ←stdio→ Claude Code Session 1
-Discord Bot ── Chorus Hub (persistent) ── HTTP ─┤─ Relay MCP ←stdio→ Claude Code Session 2
-                                               └─ Relay MCP ←stdio→ Claude Code Session 3
-```
+![Chorus routing a Discord channel to a Claude Code session](docs/chorus/hero.png)
 
-**Hub** (Python) — persistent process that connects to Discord, routes messages to relays via HTTP.
-**Relay** (TypeScript/Bun) — lightweight MCP server spawned by Claude Code, one per session.
+## What it does
 
-## Get Started
+- **One bot, many channels, many sessions.** Each Discord channel maps to a dedicated Claude Code session with its own working directory and context.
+- **Full Claude Code capabilities per session** — tools, CLAUDE.md, hooks, skills, MCP servers, everything. The relay is a plain MCP plugin; nothing is stripped down.
+- **Channel topic becomes the system prompt** — set a channel's Discord topic to "CCTrade options research, cwd: cctrade/" and that context loads automatically. Zero-config per-workspace routing.
+
+## Quick start
 
 ### Prerequisites
 
 - Python 3.10+
-- [Bun](https://bun.sh) runtime
-- A Discord bot with **Message Content Intent** enabled ([create one here](https://discord.com/developers/applications))
-  - Permissions needed: Send Messages, Read Message History, Add Reactions, Attach Files
+- [Bun](https://bun.sh) runtime (the relay is a Bun MCP server)
+- A Discord bot with **Message Content Intent** enabled ([Discord Developer Portal](https://discord.com/developers/applications))
+  - Required permissions: Send Messages, Read Message History, Add Reactions, Attach Files
 
 ### Install
 
@@ -32,7 +31,7 @@ claude plugin install chorus-relay
 
 > **Research preview:** Until Chorus is on the official plugin allowlist, install from our marketplace:
 > ```bash
-> claude plugin marketplace add chorus-marketplace --source github --repo zxiang77/chorus-marketplace
+> claude plugin marketplace add zxiang77/chorus-marketplace
 > claude plugin install chorus-relay@chorus-marketplace
 > ```
 
@@ -49,34 +48,46 @@ chorus allow <your-user-id>
 ### Run
 
 ```bash
-# Terminal 1: Start the Hub
+# Terminal 1: start the Hub
 chorus hub
 
-# Terminal 2: Connect a channel (right-click channel → Copy Channel ID)
+# Terminal 2: connect a channel (right-click channel → Copy Channel ID)
 CHORUS_CHANNEL=<channel-id> claude
 ```
 
-> **Research preview:** Add `--dangerously-load-development-channels server:chorus-relay` to the `claude` command until Chorus is on the official allowlist.
+> **Research preview:** append `--dangerously-load-development-channels server:chorus-relay` to the `claude` command until Chorus is on the official allowlist.
 >
-> `chorus connect <channel-id>` prints the exact command for you.
+> `chorus connect <channel-id>` prints the exact command.
 
-Send a message in the Discord channel. Claude receives it and can reply.
+Post a message in the Discord channel — Claude receives it, can reply, react, fetch history, and edit messages.
 
 ### Multiple channels
 
-Each channel gets its own Claude session. Open a new terminal for each one:
+Each channel gets its own Claude session. Open a new terminal per channel:
 
 ```bash
-# Terminal 2
+# Terminal A
 CHORUS_CHANNEL=1111111111 claude
 
-# Terminal 3
+# Terminal B
 CHORUS_CHANNEL=2222222222 claude
 ```
 
-> **Research preview:** Add `--dangerously-load-development-channels server:chorus-relay` to each `claude` command until Chorus is on the official allowlist.
+Check active sessions with `chorus status`.
 
-Check active sessions: `chorus status`
+## How it works
+
+```
+                                               ┌─ Relay MCP ←stdio→ Claude Code Session 1
+Discord Bot ── Chorus Hub (persistent) ── HTTP ─┤─ Relay MCP ←stdio→ Claude Code Session 2
+                                               └─ Relay MCP ←stdio→ Claude Code Session 3
+```
+
+**Hub** — a persistent Python process. Holds the single Discord gateway connection, runs an aiohttp router on localhost:8799, owns the routing table of channel IDs to relays. One Hub per machine.
+
+**Relay** — a short-lived TypeScript/Bun MCP server. One spawned per Claude Code session. On startup it registers its channel + port with the Hub via HTTP; on inbound Discord messages it emits `notifications/claude/channel` over its MCP stdio transport so the message appears in the Claude transcript as a `<channel source="chorus-relay" ...>` block.
+
+The HTTP seam between Hub and Relay is the key design choice. It means (a) Claude Code sessions come and go without re-authing the Discord bot, (b) one bot identity can serve arbitrarily many sessions, (c) the Relay stays stateless — if Claude Code crashes, the next session picks up cleanly. Hub and Relay authenticate with a shared bearer token in `~/.chorus/.secret`.
 
 ## Commands
 
@@ -89,7 +100,7 @@ Check active sessions: `chorus status`
 
 ## Channel context
 
-Set a Discord channel's **topic/description** to give Claude context (e.g., "CCTrade options trading tools. Working directory: cctrade/"). The relay injects this as system prompt context automatically.
+Set a Discord channel's **topic/description** in Discord's channel settings. The relay reads it on startup and injects it as system-prompt context automatically. Example topic: *"CCTrade options trading research. Working directory: cctrade/. Use `cctrade/CLAUDE.md` for conventions."*
 
 ## Troubleshooting
 
@@ -98,13 +109,16 @@ Set a Discord channel's **topic/description** to give Claude context (e.g., "CCT
 | Hub won't start | Check `DISCORD_BOT_TOKEN` is set; enable Message Content Intent in Discord Developer Portal |
 | Messages not arriving | Run `chorus allow <user-id>`; verify `chorus status` shows the channel |
 | Relay won't register | Start the Hub first (it creates `~/.chorus/.secret` on first run) |
-| Reply doesn't appear in Discord | Check bot has Send Messages permission in the channel |
+| Reply doesn't appear in Discord | Check the bot has Send Messages permission in the channel |
+
+## Roadmap
+
+Architecture is channel-agnostic — Telegram and iMessage are the obvious next stops (Claude Code's channels API already supports them). Track progress or chime in on [issues](https://github.com/zxiang77/chorus/issues).
 
 ## Docs
 
-- [Reference](docs/chorus/reference.md) — configuration, environment variables, HTTP API, security
+- [Reference](docs/chorus/reference.md) — configuration schema, environment variables, HTTP API, security model
 - [E2E Testing](docs/chorus/e2e-testing.md) — step-by-step manual testing guide
-- [Phase History](docs/chorus/INDEX.md) — development phase documentation
 
 ## Development
 
