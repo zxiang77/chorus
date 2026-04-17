@@ -1,0 +1,122 @@
+# Chorus E2E Testing Guide
+
+Step-by-step guide to test the full message flow: Discord → Hub → Relay → Claude Code → reply back.
+
+## Prerequisites
+
+1. **Discord bot** — create one at the [Discord Developer Portal](https://discord.com/developers/applications):
+   - Enable **Message Content Intent** under Bot settings
+   - Grant permissions: Send Messages, Read Message History, Add Reactions, Attach Files
+   - Invite the bot to your Discord server
+
+2. **Discord channel** — pick (or create) a channel for testing. Copy the channel ID:
+   - Right-click the channel → Copy Channel ID (enable Developer Mode in Discord settings if you don't see this)
+
+3. **Your Discord user ID** — needed for the sender allowlist:
+   - Right-click your username → Copy User ID
+
+4. **Dependencies installed**:
+   ```bash
+   # Hub (Python)
+   cd chorus && pip install -e ".[dev]"
+
+   # Relay (TypeScript/Bun)
+   cd chorus/relay && bun install
+   ```
+
+## Step 1: Configure
+
+```bash
+# Set your bot token
+export DISCORD_BOT_TOKEN="your-bot-token-here"
+
+# Add yourself to the sender allowlist
+chorus allow <your-discord-user-id>
+```
+
+Verify config exists:
+```bash
+cat ~/.chorus/config.json
+# Should show your user ID in allowed_senders
+```
+
+## Step 2: Start the Hub
+
+```bash
+cd chorus
+chorus hub
+```
+
+You should see:
+```
+Hub HTTP server listening on 127.0.0.1:8799
+Discord bot connected as YourBotName#1234
+```
+
+If you see `Error: DISCORD_BOT_TOKEN not set` — check the export from Step 1.
+
+Leave this terminal running.
+
+## Step 3: Start a Claude Code session with the Relay
+
+In a **new terminal**, launch Claude Code with the relay channel enabled. During the
+research preview, custom channels require the development flag:
+
+```bash
+CHORUS_CHANNEL=<your-channel-id> claude --dangerously-load-development-channels server:chorus-relay
+```
+
+Claude Code will prompt you to confirm loading the development channel. The relay
+registers with the Hub on startup and pushes inbound Discord messages into the
+session via `notifications/claude/channel`.
+
+Or use the convenience command:
+```bash
+chorus connect <your-channel-id>
+# Prints the full command — copy and run it
+```
+
+## Step 4: Test the message flow
+
+1. **Send a message** in the Discord channel (from your account, not the bot)
+2. The Hub should route it to the Relay → Claude Code session
+3. Claude should see the message and can reply using the `reply` tool
+4. The reply should appear in the Discord channel
+
+## Step 5: Verify with `chorus status`
+
+In a **third terminal**:
+```bash
+chorus status
+```
+
+Should show your active session:
+```
+Active sessions: 1
+  <channel-id>  port=<port>  session=relay-<id>  since=<timestamp>
+```
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Hub prints nothing after "listening on..." | Bot token may be wrong or Message Content Intent not enabled | Check token; enable intent in Discord Developer Portal |
+| Message sent but Claude doesn't receive it | Sender not in allowlist, or channel not registered | Run `chorus allow <user-id>`; check `chorus status` shows the channel |
+| `chorus status` shows 0 sessions | Relay didn't register with Hub | Check Relay terminal for errors; verify `~/.chorus/.secret` exists |
+| Relay fails with "CHORUS_CHANNEL required" | Env var not set | Set `CHORUS_CHANNEL=<id>` before the claude command |
+| Relay fails reading secret | Hub hasn't run yet (no `~/.chorus/.secret`) | Start the Hub first — it auto-generates the secret on first run |
+| Claude receives message but reply doesn't appear in Discord | Reply tool error or Hub disconnected | Check Hub terminal for errors; verify bot has Send Messages permission |
+
+## Multiple Channels
+
+Run multiple Claude sessions, each with a different channel:
+
+```bash
+# Terminal 2: session for #cctrade
+CHORUS_CHANNEL=1484825803433836554 claude --dangerously-load-development-channels server:chorus-relay
+
+# Terminal 3: session for #backend
+CHORUS_CHANNEL=1485159010754887800 claude --dangerously-load-development-channels server:chorus-relay
+```
+
+Each channel routes to its own isolated Claude Code session. Verify with `chorus status`.

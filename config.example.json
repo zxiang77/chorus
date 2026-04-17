@@ -1,0 +1,12 @@
+{
+  "hub": {
+    "host": "127.0.0.1",
+    "port": 8799,
+    "discord_token_env": "DISCORD_BOT_TOKEN"
+  },
+  "defaults": {
+    "cwd": ".",
+    "permission_relay": false,
+    "allowed_senders": []
+  }
+}
