@@ -21,6 +21,56 @@ class ChorusConfig:
     allowed_senders: list[str] = field(default_factory=list)
 
 
+def resolve_config_dir() -> Path:
+    """Directory that holds ``.env``, ``.secret``, and ``config.json``.
+
+    Respects ``CHORUS_CONFIG`` (taking its parent) when set; otherwise falls
+    back to ``~/.chorus``.
+    """
+    chorus_config_env = os.environ.get("CHORUS_CONFIG")
+    if chorus_config_env:
+        return Path(chorus_config_env).parent
+    return _DEFAULT_CONFIG_DIR
+
+
+def write_dotenv_value(path: Path, key: str, value: str) -> None:
+    """Upsert ``key=value`` in a dotenv file; chmod 0600.
+
+    Preserves other lines (including comments) in order. Duplicate lines
+    for the same key collapse into a single updated line. Creates the
+    parent directory if missing.
+    """
+    existing: list[str] = []
+    if path.exists():
+        try:
+            existing = path.read_text().splitlines()
+        except (OSError, UnicodeDecodeError):
+            existing = []
+
+    new_lines: list[str] = []
+    replaced = False
+    for line in existing:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            k, _, _ = stripped.partition("=")
+            if k.strip() == key:
+                if not replaced:
+                    new_lines.append(f"{key}={value}")
+                    replaced = True
+                continue
+        new_lines.append(line)
+    if not replaced:
+        new_lines.append(f"{key}={value}")
+
+    content = "\n".join(new_lines)
+    if not content.endswith("\n"):
+        content += "\n"
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+
+
 def _read_dotenv_value(path: Path, key: str) -> str | None:
     """Best-effort dotenv read. Returns the value for ``key`` or ``None``.
 

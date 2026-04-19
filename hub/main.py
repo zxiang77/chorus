@@ -13,7 +13,12 @@ import nest_asyncio
 from aiohttp.web import AppRunner, TCPSite
 
 from hub.bot import ChorusBot
-from hub.config import load_config, load_or_create_secret
+from hub.config import (
+    load_config,
+    load_or_create_secret,
+    resolve_config_dir,
+    write_dotenv_value,
+)
 from hub.router import create_app
 
 logging.basicConfig(
@@ -113,6 +118,43 @@ def allow(user_id: str) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(data, indent=2))
     click.echo(f"Added {user_id} to allowed_senders.")
+
+
+@cli.command()
+@click.argument("arg", required=False)
+def configure(arg: str | None) -> None:
+    """Configure the Discord bot token (save / show / clear).
+
+    \b
+    Forms:
+      chorus configure <token>   save token to ~/.chorus/.env
+      chorus configure           show current status
+      chorus configure clear     remove the stored token
+    """
+    if arg is None:
+        _configure_status()
+        return
+    if arg == "clear":
+        _configure_clear()
+        return
+    _configure_save(arg.strip())
+
+
+def _configure_save(token: str) -> None:
+    if not token:
+        click.echo("Error: token is empty.", err=True)
+        raise SystemExit(1)
+    env_path = resolve_config_dir() / ".env"
+    write_dotenv_value(env_path, "DISCORD_BOT_TOKEN", token)
+    click.echo(f"Token saved to {env_path}.")
+
+
+def _configure_status() -> None:
+    raise NotImplementedError  # Task 3
+
+
+def _configure_clear() -> None:
+    raise NotImplementedError  # Task 4
 
 
 def _fetch_status() -> dict:
