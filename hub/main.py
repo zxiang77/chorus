@@ -136,7 +136,29 @@ def _fetch_status() -> dict:
 @cli.command()
 def status() -> None:
     """Fetch and display active sessions from the Hub."""
-    data = _fetch_status()
+    from urllib.error import HTTPError, URLError
+
+    try:
+        data = _fetch_status()
+    except HTTPError as e:
+        if e.code in (401, 403):
+            click.echo(
+                f"Error: Hub rejected the request ({e.code} {e.reason}). "
+                "Check that ~/.chorus/.secret matches the running Hub.",
+                err=True,
+            )
+        else:
+            click.echo(f"Error: Hub returned {e.code} {e.reason}.", err=True)
+        raise SystemExit(1)
+    except URLError as e:
+        cfg = load_config()
+        click.echo(
+            f"Error: Hub is not running (could not reach {cfg.hub_host}:{cfg.hub_port}: {e.reason}).\n"
+            "Start it with `chorus hub`.",
+            err=True,
+        )
+        raise SystemExit(1)
+
     count = data.get("count", 0)
     routes = data.get("routes", {})
 

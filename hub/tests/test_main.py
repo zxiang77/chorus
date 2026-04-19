@@ -247,3 +247,66 @@ def test_fetch_status_sends_bearer_auth_header(tmp_path, monkeypatch):
         "_fetch_status must include an Authorization header in the HTTP request"
     assert auth_header == "Bearer my-test-secret-token", \
         f"Expected 'Bearer my-test-secret-token', got '{auth_header}'"
+
+
+def test_status_handles_hub_not_running_gracefully():
+    """chorus status must not emit a stacktrace when the Hub isn't running.
+
+    When the Hub is down, _fetch_status raises urllib.error.URLError wrapping
+    ConnectionRefusedError. The status command should catch this and print a
+    friendly message, exiting non-zero.
+    """
+    from urllib.error import URLError
+
+    from hub.main import cli
+
+    with patch(
+        "hub.main._fetch_status",
+        side_effect=URLError(ConnectionRefusedError(61, "Connection refused")),
+    ):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["status"])
+
+    assert result.exit_code != 0, "status should exit non-zero when hub is down"
+    # No stacktrace: Click surfaces uncaught exceptions via result.exception.
+    assert result.exception is None or isinstance(result.exception, SystemExit), \
+        f"status must not raise; got {result.exception!r}"
+    # Friendly message that mentions the hub can't be reached.
+    output_lower = result.output.lower()
+    assert "hub" in output_lower and (
+        "not running" in output_lower
+        or "not reachable" in output_lower
+        or "can't reach" in output_lower
+        or "cannot reach" in output_lower
+        or "unreachable" in output_lower
+        or "refused" in output_lower
+    ), f"Expected a friendly 'hub not running' message; got: {result.output!r}"
+
+
+def test_status_handles_auth_failure_gracefully():
+    """chorus status must not emit a stacktrace when the secret is wrong.
+
+    HTTPError 401/403 should produce a friendly message, not a traceback.
+    """
+    from urllib.error import HTTPError
+
+    from hub.main import cli
+
+    http_err = HTTPError(
+        url="http://127.0.0.1:8799/status",
+        code=401,
+        msg="Unauthorized",
+        hdrs=None,
+        fp=None,
+    )
+
+    with patch("hub.main._fetch_status", side_effect=http_err):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["status"])
+
+    assert result.exit_code != 0
+    assert result.exception is None or isinstance(result.exception, SystemExit), \
+        f"status must not raise; got {result.exception!r}"
+    assert "401" in result.output or "unauth" in result.output.lower() or \
+        "secret" in result.output.lower(), \
+        f"Expected an auth-related message; got: {result.output!r}"
