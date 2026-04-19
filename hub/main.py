@@ -254,7 +254,11 @@ def hub() -> None:
     logger.info("Secret loaded (len=%d)", len(secret))
 
     if not cfg.discord_token:
-        logger.error("DISCORD_BOT_TOKEN not set")
+        click.echo(
+            "Error: No Discord token configured.\n"
+            "Run `chorus configure <token>` or export DISCORD_BOT_TOKEN.",
+            err=True,
+        )
         raise SystemExit(1)
     logger.info("Discord token present (len=%d)", len(cfg.discord_token))
 
