@@ -27,12 +27,15 @@ Step-by-step guide to test the full message flow: Discord → Hub → Relay → 
 ## Step 1: Configure
 
 ```bash
-# Set your bot token
-export DISCORD_BOT_TOKEN="your-bot-token-here"
+# Save your bot token to ~/.chorus/.env (chmod 0600)
+chorus configure <your-bot-token-here>
 
 # Add yourself to the sender allowlist
 chorus allow <your-discord-user-id>
 ```
+
+> Exporting `DISCORD_BOT_TOKEN` in your shell also works and takes precedence
+> over the saved value. Use whichever fits your workflow.
 
 Verify config exists:
 ```bash
@@ -53,7 +56,8 @@ Hub HTTP server listening on 127.0.0.1:8799
 Discord bot connected as YourBotName#1234
 ```
 
-If you see `Error: DISCORD_BOT_TOKEN not set` — check the export from Step 1.
+If you see `Error: No Discord token configured` — re-run `chorus configure <token>`
+from Step 1, or export `DISCORD_BOT_TOKEN` in this shell.
 
 Leave this terminal running.
 

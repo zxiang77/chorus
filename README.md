@@ -38,12 +38,14 @@ claude plugin install chorus-relay
 ### Configure
 
 ```bash
-# Set your Discord bot token
-export DISCORD_BOT_TOKEN="your-bot-token"
+# Save your Discord bot token (stored at ~/.chorus/.env, chmod 0600)
+chorus configure <your-bot-token>
 
 # Allow your Discord user ID (right-click your name in Discord → Copy User ID)
 chorus allow <your-user-id>
 ```
+
+> `chorus configure` writes to `~/.chorus/.env` so the Hub picks it up on every start. Exporting `DISCORD_BOT_TOKEN` in your shell still works and takes precedence. Run `chorus configure` with no args to see current state.
 
 ### Run
 
@@ -97,6 +99,9 @@ The HTTP seam between Hub and Relay is the key design choice. It means (a) Claud
 | `chorus status` | Show active channel-to-session mappings |
 | `chorus connect <channel-id>` | Print the Claude Code launch command for a channel |
 | `chorus allow <user-id>` | Add a Discord user to the sender allowlist |
+| `chorus configure <token>` | Save the Discord bot token to `~/.chorus/.env` |
+| `chorus configure` | Show token + hub status |
+| `chorus configure clear` | Remove the saved token |
 
 ## Channel context
 
@@ -106,7 +111,7 @@ Set a Discord channel's **topic/description** in Discord's channel settings. The
 
 | Symptom | Fix |
 |---------|-----|
-| Hub won't start | Check `DISCORD_BOT_TOKEN` is set; enable Message Content Intent in Discord Developer Portal |
+| Hub won't start | Run `chorus configure <token>` (or export `DISCORD_BOT_TOKEN`); enable Message Content Intent in Discord Developer Portal |
 | Messages not arriving | Run `chorus allow <user-id>`; verify `chorus status` shows the channel |
 | Relay won't register | Start the Hub first (it creates `~/.chorus/.secret` on first run) |
 | Reply doesn't appear in Discord | Check the bot has Send Messages permission in the channel |

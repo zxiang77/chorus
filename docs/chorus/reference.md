@@ -30,10 +30,31 @@ Config file at `~/.chorus/config.json` (or set `CHORUS_CONFIG` env var):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DISCORD_BOT_TOKEN` | Yes | Discord bot token |
+| `DISCORD_BOT_TOKEN` | Yes (or run `chorus configure`) | Discord bot token. Shell env wins over `~/.chorus/.env`. |
 | `CHORUS_CONFIG` | No | Path to config file (default: `~/.chorus/config.json`) |
 | `CHORUS_CHANNEL` | Yes (relay) | Discord channel ID this relay handles |
 | `CHORUS_HUB` | No (relay) | Hub URL (default: `http://127.0.0.1:8799`) |
+
+## Token Storage
+
+The Discord bot token can be persisted with `chorus configure` so it doesn't
+need to be re-exported in every shell:
+
+```bash
+chorus configure <token>   # save to ~/.chorus/.env (chmod 0600)
+chorus configure           # show current status (token + hub + allowlist count)
+chorus configure clear     # remove the saved token
+```
+
+**File:** `~/.chorus/.env`, mode `0600`. Dotenv format; the token key is
+always the literal `DISCORD_BOT_TOKEN` even if `hub.discord_token_env` is
+customized (that setting only affects shell-env lookup).
+
+**Precedence:** shell env beats `~/.chorus/.env`. If both are set, the shell
+value wins.
+
+**Status output** masks the token to its first 6 chars. The full value is
+never printed.
 
 ## Security
 
