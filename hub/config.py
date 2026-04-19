@@ -21,6 +21,32 @@ class ChorusConfig:
     allowed_senders: list[str] = field(default_factory=list)
 
 
+def _read_dotenv_value(path: Path, key: str) -> str | None:
+    """Best-effort dotenv read. Returns the value for ``key`` or ``None``.
+
+    A missing file, unreadable file, or malformed content is treated as
+    "not configured" — callers want graceful fallback, not an exception.
+    """
+    try:
+        text = path.read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in stripped:
+            continue
+        k, _, v = stripped.partition("=")
+        if k.strip() == key:
+            v = v.strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+                v = v[1:-1]
+            return v
+    return None
+
+
 def load_config(config_dir: Path | None = None) -> ChorusConfig:
     """Load configuration from config.json file with sensible defaults.
 
@@ -51,6 +77,9 @@ def load_config(config_dir: Path | None = None) -> ChorusConfig:
     allowed = defaults_section.get("allowed_senders", [])
 
     discord_token = os.environ.get(token_env)
+    if discord_token is None:
+        env_file = config_path.parent / ".env"
+        discord_token = _read_dotenv_value(env_file, "DISCORD_BOT_TOKEN")
 
     return ChorusConfig(
         hub_host=host,

@@ -104,6 +104,97 @@ def test_load_or_create_secret_creates_new_file_with_restricted_mode(tmp_path):
     assert file_mode == 0o600, f"Expected mode 0o600, got {oct(file_mode)}"
 
 
+def test_load_config_reads_token_from_env_file(tmp_path, monkeypatch):
+    """When shell env is unset and .env has DISCORD_BOT_TOKEN, it's used."""
+    config_dir = tmp_path / ".chorus"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text("DISCORD_BOT_TOKEN=token-from-file\n")
+
+    monkeypatch.delenv("CHORUS_CONFIG", raising=False)
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    from hub.config import load_config
+
+    cfg = load_config(config_dir=config_dir)
+    assert cfg.discord_token == "token-from-file"
+
+
+def test_shell_env_wins_over_env_file(tmp_path, monkeypatch):
+    """Shell env var beats the .env file when both set the token."""
+    config_dir = tmp_path / ".chorus"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text("DISCORD_BOT_TOKEN=from-file\n")
+
+    monkeypatch.delenv("CHORUS_CONFIG", raising=False)
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "from-shell")
+
+    from hub.config import load_config
+
+    cfg = load_config(config_dir=config_dir)
+    assert cfg.discord_token == "from-shell"
+
+
+def test_env_file_ignores_comments_and_blank_lines(tmp_path, monkeypatch):
+    config_dir = tmp_path / ".chorus"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text(
+        "# header comment\n"
+        "\n"
+        "DISCORD_BOT_TOKEN=the-token\n"
+        "# trailing\n"
+    )
+    monkeypatch.delenv("CHORUS_CONFIG", raising=False)
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    from hub.config import load_config
+
+    cfg = load_config(config_dir=config_dir)
+    assert cfg.discord_token == "the-token"
+
+
+def test_env_file_strips_surrounding_quotes(tmp_path, monkeypatch):
+    config_dir = tmp_path / ".chorus"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text('DISCORD_BOT_TOKEN="quoted-value"\n')
+    monkeypatch.delenv("CHORUS_CONFIG", raising=False)
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    from hub.config import load_config
+
+    cfg = load_config(config_dir=config_dir)
+    assert cfg.discord_token == "quoted-value"
+
+
+def test_malformed_env_file_is_not_an_error(tmp_path, monkeypatch):
+    """A garbled .env file is treated as 'no token', not an exception."""
+    config_dir = tmp_path / ".chorus"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text("this is not a valid dotenv >>> @@@\n")
+    monkeypatch.delenv("CHORUS_CONFIG", raising=False)
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    from hub.config import load_config
+
+    cfg = load_config(config_dir=config_dir)
+    assert cfg.discord_token is None
+
+
+def test_env_file_used_when_chorus_config_env_var_set(tmp_path, monkeypatch):
+    """When CHORUS_CONFIG points at a custom file, .env next to it is used."""
+    custom_dir = tmp_path / "custom"
+    custom_dir.mkdir()
+    (custom_dir / "chorus.json").write_text("{}")
+    (custom_dir / ".env").write_text("DISCORD_BOT_TOKEN=custom-env-file-token\n")
+
+    monkeypatch.setenv("CHORUS_CONFIG", str(custom_dir / "chorus.json"))
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    from hub.config import load_config
+
+    cfg = load_config()
+    assert cfg.discord_token == "custom-env-file-token"
+
+
 def test_load_or_create_secret_reuses_existing_secret(tmp_path):
     """When a secret file already exists, load_or_create_secret returns its contents without overwriting."""
     config_dir = tmp_path / ".chorus"
