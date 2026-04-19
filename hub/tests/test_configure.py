@@ -93,3 +93,65 @@ def test_configure_save_echoes_confirmation(tmp_path, monkeypatch):
     assert "saved" in result.output.lower() or "configured" in result.output.lower()
     # Do NOT leak the full token in stdout
     assert "MTIzNGFiY2Q=" not in result.output
+
+
+def test_configure_status_when_unset(tmp_path, monkeypatch):
+    _config_setup(tmp_path, monkeypatch)
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure"])
+
+    assert result.exit_code == 0, result.output
+    assert "not configured" in result.output.lower()
+    assert "chorus configure" in result.output
+
+
+def test_configure_status_when_set_from_env_file(tmp_path, monkeypatch):
+    _config_setup(tmp_path, monkeypatch)
+    (tmp_path / ".env").write_text("DISCORD_BOT_TOKEN=MTIzNGFiY2Q=\n")
+
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure"])
+
+    assert result.exit_code == 0, result.output
+    assert "set" in result.output.lower()
+    assert "MTIzNG" in result.output
+    assert "MTIzNGFiY2Q=" not in result.output
+    assert ".env" in result.output
+
+
+def test_configure_status_when_set_from_shell_env(tmp_path, monkeypatch):
+    _config_setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "SHELLAB123456")
+
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure"])
+
+    assert result.exit_code == 0, result.output
+    assert "set" in result.output.lower()
+    assert "DISCORD_BOT_TOKEN" in result.output
+    assert "SHELLA" in result.output
+    assert "SHELLAB123456" not in result.output
+
+
+def test_configure_status_shows_hub_host_and_port(tmp_path, monkeypatch):
+    config_file = tmp_path / "config.json"
+    config_file.write_text(json.dumps({
+        "hub": {"host": "127.0.0.1", "port": 8799},
+        "defaults": {"allowed_senders": ["a", "b"]},
+    }))
+    monkeypatch.setenv("CHORUS_CONFIG", str(config_file))
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure"])
+
+    assert "127.0.0.1:8799" in result.output
+    assert "2" in result.output  # allowed_senders count

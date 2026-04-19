@@ -150,7 +150,30 @@ def _configure_save(token: str) -> None:
 
 
 def _configure_status() -> None:
-    raise NotImplementedError  # Task 3
+    cfg = load_config()
+    shell_token = os.environ.get("DISCORD_BOT_TOKEN")
+    env_path = resolve_config_dir() / ".env"
+
+    if shell_token:
+        click.echo(f"Token:  set ({_mask(shell_token)} from $DISCORD_BOT_TOKEN)")
+    elif cfg.discord_token:
+        click.echo(f"Token:  set ({_mask(cfg.discord_token)} from {env_path})")
+    else:
+        click.echo("Token:  not configured")
+
+    click.echo(f"Hub:    {cfg.hub_host}:{cfg.hub_port}")
+    click.echo(f"Allowed senders: {len(cfg.allowed_senders)}")
+
+    if not (shell_token or cfg.discord_token):
+        click.echo(
+            "Next:   chorus configure <token>   "
+            "# paste your Developer Portal bot token"
+        )
+
+
+def _mask(token: str) -> str:
+    """Return first 6 chars + ellipsis — never leak the full token."""
+    return (token[:6] + "…") if len(token) > 6 else "…"
 
 
 def _configure_clear() -> None:
