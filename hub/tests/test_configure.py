@@ -155,3 +155,60 @@ def test_configure_status_shows_hub_host_and_port(tmp_path, monkeypatch):
 
     assert "127.0.0.1:8799" in result.output
     assert "2" in result.output  # allowed_senders count
+
+
+def test_configure_clear_removes_token_line(tmp_path, monkeypatch):
+    _config_setup(tmp_path, monkeypatch)
+    env_file = tmp_path / ".env"
+    env_file.write_text("DISCORD_BOT_TOKEN=abc\nOTHER=keep\n")
+
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure", "clear"])
+
+    assert result.exit_code == 0, result.output
+    content = env_file.read_text()
+    assert "DISCORD_BOT_TOKEN" not in content
+    assert "OTHER=keep" in content
+
+
+def test_configure_clear_deletes_file_when_only_token(tmp_path, monkeypatch):
+    _config_setup(tmp_path, monkeypatch)
+    env_file = tmp_path / ".env"
+    env_file.write_text("DISCORD_BOT_TOKEN=abc\n")
+
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure", "clear"])
+
+    assert result.exit_code == 0
+    assert not env_file.exists()
+
+
+def test_configure_clear_when_file_missing_is_noop(tmp_path, monkeypatch):
+    _config_setup(tmp_path, monkeypatch)
+
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure", "clear"])
+
+    assert result.exit_code == 0
+    assert "nothing to clear" in result.output.lower()
+
+
+def test_configure_clear_when_file_has_no_token_key_is_noop(tmp_path, monkeypatch):
+    _config_setup(tmp_path, monkeypatch)
+    env_file = tmp_path / ".env"
+    env_file.write_text("OTHER=keep-me\n")
+
+    from hub.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["configure", "clear"])
+
+    assert result.exit_code == 0
+    assert "nothing to clear" in result.output.lower()
+    assert env_file.read_text() == "OTHER=keep-me\n"

@@ -16,6 +16,7 @@ from hub.bot import ChorusBot
 from hub.config import (
     load_config,
     load_or_create_secret,
+    remove_dotenv_value,
     resolve_config_dir,
     write_dotenv_value,
 )
@@ -177,7 +178,12 @@ def _mask(token: str) -> str:
 
 
 def _configure_clear() -> None:
-    raise NotImplementedError  # Task 4
+    env_path = resolve_config_dir() / ".env"
+    removed = remove_dotenv_value(env_path, "DISCORD_BOT_TOKEN")
+    if removed:
+        click.echo(f"Token removed from {env_path}.")
+    else:
+        click.echo("Token not configured; nothing to clear.")
 
 
 def _fetch_status() -> dict:

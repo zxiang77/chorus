@@ -71,6 +71,49 @@ def write_dotenv_value(path: Path, key: str, value: str) -> None:
     os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
 
 
+def remove_dotenv_value(path: Path, key: str) -> bool:
+    """Remove ``key`` from a dotenv file.
+
+    Returns True if the key was removed, False if absent or the file
+    didn't exist. If the file has no remaining non-blank, non-comment
+    content after removal, it's deleted outright.
+    """
+    if not path.exists():
+        return False
+    try:
+        lines = path.read_text().splitlines()
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    new_lines: list[str] = []
+    removed = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            k, _, _ = stripped.partition("=")
+            if k.strip() == key:
+                removed = True
+                continue
+        new_lines.append(line)
+
+    if not removed:
+        return False
+
+    has_content = any(
+        ln.strip() and not ln.strip().startswith("#") for ln in new_lines
+    )
+    if not has_content:
+        path.unlink()
+        return True
+
+    content = "\n".join(new_lines)
+    if not content.endswith("\n"):
+        content += "\n"
+    path.write_text(content)
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+    return True
+
+
 def _read_dotenv_value(path: Path, key: str) -> str | None:
     """Best-effort dotenv read. Returns the value for ``key`` or ``None``.
 
