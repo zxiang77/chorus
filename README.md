@@ -79,17 +79,47 @@ Check active sessions with `chorus status`.
 
 ## How it works
 
+```mermaid
+flowchart LR
+    U["Discord user"] -- "DM / channel msg" --> B(("Discord bot"))
+    B <-- "gateway" --> H["Chorus Hub<br/>(persistent, :8799)"]
+    H <-- "HTTP + bearer" --> R1["Relay MCP<br/>channel A"]
+    H <-- "HTTP + bearer" --> R2["Relay MCP<br/>channel B"]
+    H <-- "HTTP + bearer" --> R3["Relay MCP<br/>channel C"]
+    R1 <-- "stdio MCP" --> C1["Claude Code<br/>session A"]
+    R2 <-- "stdio MCP" --> C2["Claude Code<br/>session B"]
+    R3 <-- "stdio MCP" --> C3["Claude Code<br/>session C"]
 ```
-                                               ┌─ Relay MCP ←stdio→ Claude Code Session 1
-Discord Bot ── Chorus Hub (persistent) ── HTTP ─┤─ Relay MCP ←stdio→ Claude Code Session 2
-                                               └─ Relay MCP ←stdio→ Claude Code Session 3
+
+**Hub** — one persistent Python process per machine. Holds the single Discord gateway connection, runs an aiohttp router on `localhost:8799`, owns the channel→relay routing table.
+
+**Relay** — a short-lived TypeScript/Bun MCP server, one per Claude Code session. On startup it registers its channel and port with the Hub over HTTP; inbound Discord messages become `notifications/claude/channel` in the session's transcript.
+
+The HTTP seam between Hub and Relay is the key design choice. Claude Code sessions come and go without re-authing the bot; one bot identity serves arbitrarily many sessions; the relay stays stateless (crash and the next session picks up). Hub and Relay authenticate with a shared bearer token in `~/.chorus/.secret`.
+
+### What a message looks like end-to-end
+
+```mermaid
+sequenceDiagram
+    participant U as You (Discord)
+    participant B as Discord bot
+    participant H as Chorus Hub
+    participant R as Relay (MCP)
+    participant C as Claude Code
+
+    U->>B: "hey, what's the status?"
+    B->>H: on_message(channel=123, text)
+    Note over H: look up routing table:<br/>channel 123 → relay on :9001
+    H->>R: POST /deliver (bearer)
+    R->>C: notifications/claude/channel
+    Note over C: Claude reads the msg,<br/>decides to reply
+    C->>R: tool: reply(text)
+    R->>H: POST /reply (bearer)
+    H->>B: bot.send_message(channel, text)
+    B->>U: Discord shows the reply
 ```
 
-**Hub** — a persistent Python process. Holds the single Discord gateway connection, runs an aiohttp router on localhost:8799, owns the routing table of channel IDs to relays. One Hub per machine.
-
-**Relay** — a short-lived TypeScript/Bun MCP server. One spawned per Claude Code session. On startup it registers its channel + port with the Hub via HTTP; on inbound Discord messages it emits `notifications/claude/channel` over its MCP stdio transport so the message appears in the Claude transcript as a `<channel source="chorus-relay" ...>` block.
-
-The HTTP seam between Hub and Relay is the key design choice. It means (a) Claude Code sessions come and go without re-authing the Discord bot, (b) one bot identity can serve arbitrarily many sessions, (c) the Relay stays stateless — if Claude Code crashes, the next session picks up cleanly. Hub and Relay authenticate with a shared bearer token in `~/.chorus/.secret`.
+Inbound is push (Discord gateway → Hub → relay notification). Outbound uses the `reply` tool exposed by the relay to Claude; the reply flows back through the Hub so there's only ever one Discord connection, regardless of how many sessions are active.
 
 ## Commands
 
