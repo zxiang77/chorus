@@ -12,70 +12,21 @@
 
 ## Quick start
 
-### Prerequisites
-
-- Python 3.10+
-- [Bun](https://bun.sh) runtime (the relay is a Bun MCP server)
-- A Discord bot with **Message Content Intent** enabled ([Discord Developer Portal](https://discord.com/developers/applications))
-  - Required permissions: Send Messages, Read Message History, Add Reactions, Attach Files
-
-### Install
-
 ```bash
-# Hub
 pip install chorus-hub
+claude plugin marketplace add zxiang77/chorus-marketplace
+claude plugin install chorus-relay@chorus-marketplace
 
-# Relay (Claude Code plugin)
-claude plugin install chorus-relay
+chorus configure <your-bot-token>      # save the Discord bot token
+chorus allow    <your-user-id>         # allow yourself to reach the bot
+
+chorus hub                              # terminal 1 — leave running
+chorus connect <channel-id>             # terminal 2 — copy & run the printed command
 ```
 
-> **Research preview:** Until Chorus is on the official plugin allowlist, install from our marketplace:
-> ```bash
-> claude plugin marketplace add zxiang77/chorus-marketplace
-> claude plugin install chorus-relay@chorus-marketplace
-> ```
+Post a message in the Discord channel — Claude receives it, can reply, react, fetch history, and edit messages. Each channel gets its own Claude session; open another terminal and `chorus connect` a different channel ID to add one.
 
-### Configure
-
-```bash
-# Save your Discord bot token (stored at ~/.chorus/.env, chmod 0600)
-chorus configure <your-bot-token>
-
-# Allow your Discord user ID (right-click your name in Discord → Copy User ID)
-chorus allow <your-user-id>
-```
-
-> `chorus configure` writes to `~/.chorus/.env` so the Hub picks it up on every start. Exporting `DISCORD_BOT_TOKEN` in your shell still works and takes precedence. Run `chorus configure` with no args to see current state.
-
-### Run
-
-```bash
-# Terminal 1: start the Hub
-chorus hub
-
-# Terminal 2: connect a channel (right-click channel → Copy Channel ID)
-CHORUS_CHANNEL=<channel-id> claude
-```
-
-> **Research preview:** append `--dangerously-load-development-channels server:chorus-relay` to the `claude` command until Chorus is on the official allowlist.
->
-> `chorus connect <channel-id>` prints the exact command.
-
-Post a message in the Discord channel — Claude receives it, can reply, react, fetch history, and edit messages.
-
-### Multiple channels
-
-Each channel gets its own Claude session. Open a new terminal per channel:
-
-```bash
-# Terminal A
-CHORUS_CHANNEL=1111111111 claude
-
-# Terminal B
-CHORUS_CHANNEL=2222222222 claude
-```
-
-Check active sessions with `chorus status`.
+**Full walkthrough with expected-output checks at every step:** [docs/chorus/getting-started.md](docs/chorus/getting-started.md)
 
 ## How it works
 
