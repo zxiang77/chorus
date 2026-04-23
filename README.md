@@ -2,8 +2,6 @@
 
 **Route a single Discord bot to multiple Claude Code sessions.** Like the [official Discord plugin](https://github.com/anthropics/claude-plugins-official/tree/main/external_plugins/discord), but multi-session — each Discord channel gets its own Claude Code session, all through one bot.
 
-![Chorus routing a Discord channel to a Claude Code session](docs/chorus/hero.png)
-
 ## What it does
 
 - **One bot, many channels, many sessions.** Each Discord channel maps to a dedicated Claude Code session with its own working directory and context.
