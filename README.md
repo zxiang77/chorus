@@ -103,8 +103,9 @@ Architecture is channel-agnostic — Telegram and iMessage are the obvious next 
 
 ## Docs
 
-- [Reference](docs/chorus/reference.md) — configuration schema, environment variables, HTTP API, security model
-- [E2E Testing](docs/chorus/e2e-testing.md) — step-by-step manual testing guide
+- **[Getting started](docs/chorus/getting-started.md)** — end-to-end walkthrough with expected-output checks
+- [Reference](docs/chorus/reference.md) — config schema, env vars, HTTP API, security model
+- [E2E Testing](docs/chorus/e2e-testing.md) — contributor validation checklist
 
 ## Development
 

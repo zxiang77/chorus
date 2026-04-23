@@ -1,5 +1,7 @@
 # Chorus Reference
 
+> New to Chorus? Start with the **[getting-started guide](getting-started.md)** — this reference is for when you already have it running.
+
 ## Configuration
 
 Config file at `~/.chorus/config.json` (or set `CHORUS_CONFIG` env var):
