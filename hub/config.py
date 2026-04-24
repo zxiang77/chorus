@@ -21,6 +21,125 @@ class ChorusConfig:
     allowed_senders: list[str] = field(default_factory=list)
 
 
+def resolve_config_dir() -> Path:
+    """Directory that holds ``.env``, ``.secret``, and ``config.json``.
+
+    Respects ``CHORUS_CONFIG`` (taking its parent) when set; otherwise falls
+    back to ``~/.chorus``.
+    """
+    chorus_config_env = os.environ.get("CHORUS_CONFIG")
+    if chorus_config_env:
+        return Path(chorus_config_env).parent
+    return _DEFAULT_CONFIG_DIR
+
+
+def write_dotenv_value(path: Path, key: str, value: str) -> None:
+    """Upsert ``key=value`` in a dotenv file; chmod 0600.
+
+    Preserves other lines (including comments) in order. Duplicate lines
+    for the same key collapse into a single updated line. Creates the
+    parent directory if missing.
+    """
+    existing: list[str] = []
+    if path.exists():
+        try:
+            existing = path.read_text().splitlines()
+        except (OSError, UnicodeDecodeError):
+            existing = []
+
+    new_lines: list[str] = []
+    replaced = False
+    for line in existing:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            k, _, _ = stripped.partition("=")
+            if k.strip() == key:
+                if not replaced:
+                    new_lines.append(f"{key}={value}")
+                    replaced = True
+                continue
+        new_lines.append(line)
+    if not replaced:
+        new_lines.append(f"{key}={value}")
+
+    content = "\n".join(new_lines)
+    if not content.endswith("\n"):
+        content += "\n"
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+
+
+def remove_dotenv_value(path: Path, key: str) -> bool:
+    """Remove ``key`` from a dotenv file.
+
+    Returns True if the key was removed, False if absent or the file
+    didn't exist. If the file has no remaining non-blank, non-comment
+    content after removal, it's deleted outright.
+    """
+    if not path.exists():
+        return False
+    try:
+        lines = path.read_text().splitlines()
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    new_lines: list[str] = []
+    removed = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            k, _, _ = stripped.partition("=")
+            if k.strip() == key:
+                removed = True
+                continue
+        new_lines.append(line)
+
+    if not removed:
+        return False
+
+    has_content = any(
+        ln.strip() and not ln.strip().startswith("#") for ln in new_lines
+    )
+    if not has_content:
+        path.unlink()
+        return True
+
+    content = "\n".join(new_lines)
+    if not content.endswith("\n"):
+        content += "\n"
+    path.write_text(content)
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+    return True
+
+
+def _read_dotenv_value(path: Path, key: str) -> str | None:
+    """Best-effort dotenv read. Returns the value for ``key`` or ``None``.
+
+    A missing file, unreadable file, or malformed content is treated as
+    "not configured" — callers want graceful fallback, not an exception.
+    """
+    try:
+        text = path.read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in stripped:
+            continue
+        k, _, v = stripped.partition("=")
+        if k.strip() == key:
+            v = v.strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+                v = v[1:-1]
+            return v
+    return None
+
+
 def load_config(config_dir: Path | None = None) -> ChorusConfig:
     """Load configuration from config.json file with sensible defaults.
 
@@ -51,6 +170,9 @@ def load_config(config_dir: Path | None = None) -> ChorusConfig:
     allowed = defaults_section.get("allowed_senders", [])
 
     discord_token = os.environ.get(token_env)
+    if discord_token is None:
+        env_file = config_path.parent / ".env"
+        discord_token = _read_dotenv_value(env_file, "DISCORD_BOT_TOKEN")
 
     return ChorusConfig(
         hub_host=host,

@@ -194,6 +194,26 @@ def test_hub_command_calls_startup_orchestration_in_order():
         "create_app must receive the shared secret"
 
 
+def test_hub_command_friendly_error_when_token_missing(tmp_path, monkeypatch):
+    """chorus hub must exit 1 with a one-line message pointing at `chorus configure`."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text("{}")
+    monkeypatch.setenv("CHORUS_CONFIG", str(config_file))
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    from hub.main import cli
+
+    with patch("hub.main.load_or_create_secret", return_value="fake-secret"):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["hub"])
+
+    assert result.exit_code == 1
+    assert "no discord token" in result.output.lower()
+    assert "chorus configure" in result.output
+    assert "Traceback" not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
 def test_fetch_status_sends_bearer_auth_header(tmp_path, monkeypatch):
     """_fetch_status reads the shared secret and includes it as a Bearer token in the HTTP request.
 

@@ -13,7 +13,13 @@ import nest_asyncio
 from aiohttp.web import AppRunner, TCPSite
 
 from hub.bot import ChorusBot
-from hub.config import load_config, load_or_create_secret
+from hub.config import (
+    load_config,
+    load_or_create_secret,
+    remove_dotenv_value,
+    resolve_config_dir,
+    write_dotenv_value,
+)
 from hub.router import create_app
 
 logging.basicConfig(
@@ -115,6 +121,71 @@ def allow(user_id: str) -> None:
     click.echo(f"Added {user_id} to allowed_senders.")
 
 
+@cli.command()
+@click.argument("arg", required=False)
+def configure(arg: str | None) -> None:
+    """Configure the Discord bot token (save / show / clear).
+
+    \b
+    Forms:
+      chorus configure <token>   save token to ~/.chorus/.env
+      chorus configure           show current status
+      chorus configure clear     remove the stored token
+    """
+    if arg is None:
+        _configure_status()
+        return
+    if arg == "clear":
+        _configure_clear()
+        return
+    _configure_save(arg.strip())
+
+
+def _configure_save(token: str) -> None:
+    if not token:
+        click.echo("Error: token is empty.", err=True)
+        raise SystemExit(1)
+    env_path = resolve_config_dir() / ".env"
+    write_dotenv_value(env_path, "DISCORD_BOT_TOKEN", token)
+    click.echo(f"Token saved to {env_path}.")
+
+
+def _configure_status() -> None:
+    cfg = load_config()
+    shell_token = os.environ.get("DISCORD_BOT_TOKEN")
+    env_path = resolve_config_dir() / ".env"
+
+    if shell_token:
+        click.echo(f"Token:  set ({_mask(shell_token)} from $DISCORD_BOT_TOKEN)")
+    elif cfg.discord_token:
+        click.echo(f"Token:  set ({_mask(cfg.discord_token)} from {env_path})")
+    else:
+        click.echo("Token:  not configured")
+
+    click.echo(f"Hub:    {cfg.hub_host}:{cfg.hub_port}")
+    click.echo(f"Allowed senders: {len(cfg.allowed_senders)}")
+
+    if not (shell_token or cfg.discord_token):
+        click.echo(
+            "Next:   chorus configure <token>   "
+            "# paste your Developer Portal bot token"
+        )
+
+
+def _mask(token: str) -> str:
+    """Return first 6 chars + ellipsis — never leak the full token."""
+    return (token[:6] + "…") if len(token) > 6 else "…"
+
+
+def _configure_clear() -> None:
+    env_path = resolve_config_dir() / ".env"
+    removed = remove_dotenv_value(env_path, "DISCORD_BOT_TOKEN")
+    if removed:
+        click.echo(f"Token removed from {env_path}.")
+    else:
+        click.echo("Token not configured; nothing to clear.")
+
+
 def _fetch_status() -> dict:
     """Fetch status from the running Hub's /status endpoint.
 
@@ -183,7 +254,11 @@ def hub() -> None:
     logger.info("Secret loaded (len=%d)", len(secret))
 
     if not cfg.discord_token:
-        logger.error("DISCORD_BOT_TOKEN not set")
+        click.echo(
+            "Error: No Discord token configured.\n"
+            "Run `chorus configure <token>` or export DISCORD_BOT_TOKEN.",
+            err=True,
+        )
         raise SystemExit(1)
     logger.info("Discord token present (len=%d)", len(cfg.discord_token))
 
