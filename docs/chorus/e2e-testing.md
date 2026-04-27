@@ -1,6 +1,6 @@
-# Chorus E2E Testing Guide
+# Chorus E2E Testing Guide (from source / contributors)
 
-Step-by-step guide to test the full message flow: Discord → Hub → Relay → Claude Code → reply back.
+Step-by-step guide to test the full message flow: Discord → Hub → Relay → Claude Code → reply back. **End users should follow [getting-started.md](getting-started.md) instead** — this guide installs from a local clone for contributors who are modifying chorus itself.
 
 ## Prerequisites
 
@@ -15,13 +15,16 @@ Step-by-step guide to test the full message flow: Discord → Hub → Relay → 
 3. **Your Discord user ID** — needed for the sender allowlist:
    - Right-click your username → Copy User ID
 
-4. **Dependencies installed**:
+4. **Clone and install from source**:
    ```bash
+   git clone https://github.com/zxiang77/chorus.git
+   cd chorus
+
    # Hub (Python)
-   cd chorus && pip install -e ".[dev]"
+   pip install -e ".[dev]"
 
    # Relay (TypeScript/Bun)
-   cd chorus/relay && bun install
+   cd relay && bun install && cd ..
    ```
 
 ## Step 1: Configure
@@ -46,14 +49,13 @@ cat ~/.chorus/config.json
 ## Step 2: Start the Hub
 
 ```bash
-cd chorus
 chorus hub
 ```
 
-You should see:
+You should see (log lines on stderr):
 ```
-Hub HTTP server listening on 127.0.0.1:8799
-Discord bot connected as YourBotName#1234
+[hh:mm:ss] [chorus.hub] INFO: HTTP router listening on 127.0.0.1:8799
+[hh:mm:ss] [chorus.hub] INFO: Discord bot connected as YourBotName#1234 (id=...)
 ```
 
 If you see `Error: No Discord token configured` — re-run `chorus configure <token>`
@@ -116,11 +118,11 @@ Active sessions: 1
 Run multiple Claude sessions, each with a different channel:
 
 ```bash
-# Terminal 2: session for #cctrade
-CHORUS_CHANNEL=1484825803433836554 claude --dangerously-load-development-channels server:chorus-relay
+# Terminal 2: session for #frontend
+CHORUS_CHANNEL=123456789012345678 claude --dangerously-load-development-channels server:chorus-relay
 
 # Terminal 3: session for #backend
-CHORUS_CHANNEL=1485159010754887800 claude --dangerously-load-development-channels server:chorus-relay
+CHORUS_CHANNEL=987654321098765432 claude --dangerously-load-development-channels server:chorus-relay
 ```
 
 Each channel routes to its own isolated Claude Code session. Verify with `chorus status`.

@@ -8,4 +8,5 @@ node_modules/
 .env
 *.log
 .worktrees/
+.claude/
 docs/superpowers/
