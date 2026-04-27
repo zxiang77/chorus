@@ -2,7 +2,7 @@
   "mcpServers": {
     "chorus-relay": {
       "command": "bun",
-      "args": ["run", "--cwd", "chorus/relay", "--shell=bun", "--silent", "start"]
+      "args": ["run", "--cwd", "relay", "--shell=bun", "--silent", "start"]
     }
   }
 }
