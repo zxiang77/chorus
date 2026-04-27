@@ -16,10 +16,10 @@ def test_connect_prints_channel_launch_command():
     from hub.main import cli
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["connect", "1485159010754887800"])
+    result = runner.invoke(cli, ["connect", "123456789012345678"])
 
     assert result.exit_code == 0, result.output
-    assert "CHORUS_CHANNEL=1485159010754887800" in result.output
+    assert "CHORUS_CHANNEL=123456789012345678" in result.output
     assert "--dangerously-load-development-channels" in result.output
     assert "server:chorus-relay" in result.output
 

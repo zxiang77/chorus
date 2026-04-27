@@ -6,7 +6,7 @@
 
 - **One bot, many channels, many sessions.** Each Discord channel maps to a dedicated Claude Code session with its own working directory and context.
 - **Full Claude Code capabilities per session** — tools, CLAUDE.md, hooks, skills, MCP servers, everything. The relay is a plain MCP plugin; nothing is stripped down.
-- **Channel topic becomes the system prompt** — set a channel's Discord topic to "CCTrade options research, cwd: cctrade/" and that context loads automatically. Zero-config per-workspace routing.
+- **Channel topic becomes the system prompt** — set a channel's Discord topic to "Backend service work, cwd: backend/" and that context loads automatically. Zero-config per-workspace routing.
 
 ## Quick start
 
@@ -84,7 +84,7 @@ Inbound is push (Discord gateway → Hub → relay notification). Outbound uses 
 
 ## Channel context
 
-Set a Discord channel's **topic/description** in Discord's channel settings. The relay reads it on startup and injects it as system-prompt context automatically. Example topic: *"CCTrade options trading research. Working directory: cctrade/. Use `cctrade/CLAUDE.md` for conventions."*
+Set a Discord channel's **topic/description** in Discord's channel settings. The relay reads it on startup and injects it as system-prompt context automatically. Example topic: *"Backend service work. Working directory: backend/. Use `backend/CLAUDE.md` for conventions."*
 
 ## Troubleshooting
 

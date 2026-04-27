@@ -129,7 +129,7 @@ Over in **terminal 2** (the Claude session), you'll see the message arrive as a 
 
 You can also:
 - React with any emoji (`react` tool)
-- Edit a previous bot message (`edit` tool) — useful for "working…" → result updates
+- Edit a previous bot message (`edit_message` tool) — useful for "working…" → result updates
 - Fetch recent history (`fetch_messages` tool)
 
 ## Step 7 — Verify with `chorus status`
@@ -156,7 +156,7 @@ That's it — one Discord channel, one Claude Code session, wired together.
 **Per-channel context.** Set the Discord channel's **topic** to something like:
 
 ```
-CCTrade options research. cwd: cctrade/. Conventions in cctrade/CLAUDE.md.
+Backend service work. cwd: backend/. Conventions in backend/CLAUDE.md.
 ```
 
 The relay reads the topic on startup and injects it as system-prompt context. Zero-config per-workspace routing.
