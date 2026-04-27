@@ -15,11 +15,11 @@ See `README.md` for user-facing install/run docs. See `docs/chorus/reference.md`
 
 ```
 hub/
-  main.py       # Click CLI: hub, status, connect, allow
+  main.py       # Click CLI: hub, status, connect, allow, configure
   bot.py        # discord.py event handlers → ChorusBot
-  router.py     # aiohttp app: /register, /unregister, /deliver, /status
-  config.py     # load_config(), load_or_create_secret()
-  tests/        # pytest, 50+ tests, run with `python -m pytest hub/tests/`
+  router.py     # aiohttp app: /register, /unregister, /reply, /react, /edit, /fetch-messages, /channel-info, /status
+  config.py     # load_config(), load_or_create_secret(), .env helpers
+  tests/        # pytest, run with `python -m pytest hub/tests/`
 
 relay/
   relay.ts      # MCP server: registers with Hub, emits notifications/claude/channel
@@ -64,7 +64,7 @@ The Hub and Relay are written against an abstract "channel" concept, not Discord
 
 ## Releasing
 
-- **`chorus-hub` on PyPI**: bump `version` in `pyproject.toml`, tag the commit (`v0.1.1`, etc.), push the tag. Trusted publishing (OIDC) handles the upload.
+- **`chorus-hub` on PyPI**: bump `version` in `pyproject.toml`, tag the commit (`hub-v0.1.1`, etc.), push the tag. The `hub-v*` tag pattern is what `.github/workflows/publish-hub.yml` triggers on; trusted publishing (OIDC) handles the upload.
 - **`chorus-relay` plugin**: changes land in `zxiang77/chorus-marketplace` (a separate repo). Update the marketplace's `relay/` alongside any relay changes here.
 
 ## When fixing a user-facing bug
