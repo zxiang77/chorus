@@ -77,6 +77,22 @@ type RelayInstance = {
 // Hub HTTP helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Normalize a Hub URL to an absolute origin.
+ *
+ * The Hub is naturally referred to as `host:port` (exactly how the `chorus`
+ * CLI prints it — "Hub: 127.0.0.1:8799"), so users reasonably set
+ * `CHORUS_HUB=127.0.0.1:8799` with no scheme. Without a scheme the relay's
+ * `fetch(`${hubUrl}${path}`)` calls throw `TypeError: fetch() URL is invalid`
+ * (ERR_INVALID_URL) and the relay dies on startup. Default to http:// when the
+ * scheme is missing.
+ */
+export function normalizeHubUrl(raw: string): string {
+  const value = (raw || "").trim();
+  if (!value) return "http://127.0.0.1:8799";
+  return /^https?:\/\//i.test(value) ? value : `http://${value}`;
+}
+
 function hubHeaders(secret: string): Record<string, string> {
   return {
     Authorization: `Bearer ${secret}`,
@@ -422,7 +438,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const hubUrl = process.env.CHORUS_HUB || "http://127.0.0.1:8799";
+  const hubUrl = normalizeHubUrl(process.env.CHORUS_HUB || "http://127.0.0.1:8799");
   log("Config: channel=" + channelId + " hub=" + hubUrl);
   const secret = readSecret();
   log("Secret loaded (len=" + secret.length + ")");

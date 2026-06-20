@@ -135,7 +135,7 @@ afterEach(() => {
 //     listTools: () => Array<{ name: string; description?: string; inputSchema: object }>;
 //   }>
 //
-import { createRelay } from "./relay";
+import { createRelay, normalizeHubUrl } from "./relay";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -509,5 +509,28 @@ describe("Relay MCP Channel Server", () => {
       // Expected: connection refused or similar network error
       expect(err).toBeTruthy();
     }
+  });
+});
+
+
+describe("normalizeHubUrl", () => {
+  test("leaves an absolute http URL unchanged", () => {
+    expect(normalizeHubUrl("http://127.0.0.1:8799")).toBe("http://127.0.0.1:8799");
+  });
+
+  test("leaves an absolute https URL unchanged", () => {
+    expect(normalizeHubUrl("https://hub.example.com")).toBe("https://hub.example.com");
+  });
+
+  test("prefixes http:// when the scheme is missing (host:port form)", () => {
+    expect(normalizeHubUrl("127.0.0.1:8799")).toBe("http://127.0.0.1:8799");
+  });
+
+  test("trims surrounding whitespace before checking the scheme", () => {
+    expect(normalizeHubUrl("  127.0.0.1:8799  ")).toBe("http://127.0.0.1:8799");
+  });
+
+  test("falls back to the default origin for an empty value", () => {
+    expect(normalizeHubUrl("")).toBe("http://127.0.0.1:8799");
   });
 });
